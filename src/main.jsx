@@ -1,12 +1,102 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import confetti from 'canvas-confetti'
-import { ArrowRight, Check, ChevronRight, Gift, Headphones, Heart, Play, RotateCcw, Rocket, Star, Trophy, Volume2, VolumeX } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, Eye, EyeOff, Gift, Headphones, Heart, LockKeyhole, Play, RotateCcw, Rocket, Star, Trophy, Volume2, VolumeX } from 'lucide-react'
 import { animeQuestions, marvelMovies, memoryCards, openingQuestions, story } from './content'
 import { EscapeGame, JutsuGame, KeroroGame, MaomaoGame, NinjaGame, UltraHeroGame, extraInstructions, extraSuccess } from './extraGames'
 import './styles.css'
 
 const steps = ['Luna', 'Marvel', 'Anime', 'Opening', 'Memoria', 'Ninja', 'Jutsus', 'Maomao', 'Keroro', 'Ultrahéroe', 'Murdles']
+
+const ACCESS_SALT = 'adviento-gate-v1:'
+const ACCESS_DIGEST = '360fe53b1854e0fe7d36e55777cb15766e9ff277bda043a5a3923fdeca3de23d'
+
+async function digestAccessCode(value) {
+  const payload = new TextEncoder().encode(`${ACCESS_SALT}${value}`)
+  const digest = await window.crypto.subtle.digest('SHA-256', payload)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+function AccessGate({ onUnlock }) {
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [checking, setChecking] = useState(false)
+  const inputRef = useRef(null)
+
+  const submit = async (event) => {
+    event.preventDefault()
+    if (checking) return
+    if (!password) {
+      setError('Escribe la contraseña para continuar.')
+      inputRef.current?.focus()
+      return
+    }
+
+    setChecking(true)
+    setError('')
+    try {
+      const digest = await digestAccessCode(password)
+      if (digest === ACCESS_DIGEST) {
+        setPassword('')
+        onUnlock()
+        return
+      }
+      setError('La contraseña no es correcta. Vuelve a intentarlo.')
+      setPassword('')
+      requestAnimationFrame(() => inputRef.current?.focus())
+    } catch {
+      setError('No se ha podido comprobar la contraseña. Recarga la página e inténtalo de nuevo.')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <main className="access-page">
+      <div className="noise" />
+      <section className="access-card" aria-labelledby="access-title">
+        <div className="access-orbit" aria-hidden="true"><span>★</span><LockKeyhole size={38} /></div>
+        <p className="eyebrow">Acceso a la misión</p>
+        <h1 id="access-title">Un último código<br /><em>antes de despegar</em></h1>
+        <p className="access-intro">Esta aventura está reservada. Introduce la contraseña para abrir la compuerta.</p>
+        <form className="access-form" onSubmit={submit} noValidate>
+          <label htmlFor="access-password">Contraseña</label>
+          <div className={`access-input ${error ? 'has-error' : ''}`}>
+            <LockKeyhole size={19} aria-hidden="true" />
+            <input
+              ref={inputRef}
+              id="access-password"
+              type={showPassword ? 'text' : 'password'}
+              inputMode="numeric"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => { setPassword(event.target.value); if (error) setError('') }}
+              aria-invalid={Boolean(error)}
+              aria-describedby="access-error"
+              autoFocus
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+            </button>
+          </div>
+          <p id="access-error" className="access-error" role={error ? 'alert' : undefined}>{error || '\u00a0'}</p>
+          <button className="primary access-submit" type="submit" disabled={checking}>
+            {checking ? 'Comprobando…' : 'Abrir la compuerta'}
+            {!checking && <ArrowRight size={18} />}
+          </button>
+        </form>
+        <small className="access-note">El acceso se cerrará cuando recargues la página.</small>
+      </section>
+    </main>
+  )
+}
 
 function useSound(enabled) {
   const context = useRef(null)
@@ -231,6 +321,11 @@ function BunnyGame({ onComplete, sound }) {
     setLevel(0); setX(47); setJump(0); setDirection(0)
     setMessage('Volvemos abajo. Esta vez finge que la gravedad te cae bien.')
   }
+  const nudge = (amount) => setX((value) => {
+    const next = Math.max(3, Math.min(87, value + amount))
+    xRef.current = next
+    return next
+  })
   // 43 px = parte superior de la plataforma actual (30 + 13).
   // 120 px = distancia vertical exacta hasta la siguiente plataforma.
   const bunnyBottom = 43 + Math.sin((jump / 100) * Math.PI) * 120
@@ -253,9 +348,9 @@ function BunnyGame({ onComplete, sound }) {
       </div>
       <div className="game-actions">
         <div className="mobile-controls" aria-label="Controles de movimiento">
-          <button onPointerDown={() => setDirection(-1)} onPointerUp={() => setDirection(0)} onPointerLeave={() => setDirection(0)} aria-label="Mover a la izquierda">←</button>
+          <button onClick={() => nudge(-1.7)} onPointerDown={() => setDirection(-1)} onPointerUp={() => setDirection(0)} onPointerLeave={() => setDirection(0)} aria-label="Mover a la izquierda">←</button>
           <span>Mantén pulsado</span>
-          <button onPointerDown={() => setDirection(1)} onPointerUp={() => setDirection(0)} onPointerLeave={() => setDirection(0)} aria-label="Mover a la derecha">→</button>
+          <button onClick={() => nudge(1.7)} onPointerDown={() => setDirection(1)} onPointerUp={() => setDirection(0)} onPointerLeave={() => setDirection(0)} aria-label="Mover a la derecha">→</button>
         </div>
         <button className="icon-button" onClick={reset} aria-label="Reiniciar conejo"><RotateCcw size={18} /></button>
       </div>
@@ -559,4 +654,9 @@ function App() {
   )
 }
 
-createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>)
+function ProtectedApp() {
+  const [unlocked, setUnlocked] = useState(false)
+  return unlocked ? <App /> : <AccessGate onUnlock={() => setUnlocked(true)} />
+}
+
+createRoot(document.getElementById('root')).render(<React.StrictMode><ProtectedApp /></React.StrictMode>)
