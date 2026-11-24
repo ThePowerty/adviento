@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import confetti from 'canvas-confetti'
-import { ArrowRight, Check, ChevronRight, Eye, EyeOff, Gift, Headphones, Heart, LockKeyhole, Play, RotateCcw, Rocket, Star, Trophy, Volume2, VolumeX } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, Eye, EyeOff, Gift, Heart, LockKeyhole, Play, RotateCcw, Rocket, Star, Trophy, Volume2, VolumeX } from 'lucide-react'
 import { animeQuestions, marvelMovies, memoryCards, openingQuestions, story } from './content'
 import { EscapeGame, JutsuGame, KeroroGame, MaomaoGame, NinjaGame, UltraHeroGame, extraInstructions, extraSuccess } from './extraGames'
 import './styles.css'
@@ -403,32 +403,16 @@ function ChoiceGame({ type, current, title, kicker, questions, onComplete, sound
 
 function OpeningGame({ onComplete, sound }) {
   const [index, setIndex] = useState(0)
-  const [playing, setPlaying] = useState(false)
-  const [playNonce, setPlayNonce] = useState(0)
   const [selected, setSelected] = useState(null)
   const [wrong, setWrong] = useState(null)
   const [message, setMessage] = useState('Sube el volumen. Yo haré los coros aunque nadie me los haya pedido.')
-  const timerRef = useRef(null)
   const question = openingQuestions[index]
-
-  useEffect(() => () => clearTimeout(timerRef.current), [])
-
-  const playClip = () => {
-    if (playing) return
-    setPlayNonce((value) => value + 1)
-    setPlaying(true)
-    setMessage('Escucha bien… son unos segundos del opening original de YouTube.')
-    clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => setPlaying(false), (question.end - question.start) * 1000 + 400)
-  }
 
   const choose = (option) => {
     if (selected) return
     if (option === question.series) {
       setSelected(option); setWrong(null); sound(820)
       setMessage('¡Oído absoluto otaku! Esa era la serie correcta.')
-      clearTimeout(timerRef.current)
-      setPlaying(false)
       setTimeout(() => {
         if (index + 1 === openingQuestions.length) onComplete()
         else { setIndex((value) => value + 1); setSelected(null); setWrong(null) }
@@ -443,18 +427,20 @@ function OpeningGame({ onComplete, sound }) {
     <GameLayout current={3} kicker="Mundo 04 · Música" title="¿De qué anime es?" narrator={message} mood={wrong ? 'oops' : selected ? 'wow' : 'happy'}>
       <div className="round-meta"><span>Opening {index + 1} de {openingQuestions.length}</span><div><i style={{ width: `${((index + (selected ? 1 : 0)) / openingQuestions.length) * 100}%` }} /></div></div>
       <article className="question-card opening-card">
-        <div className={`audio-console ${playing ? 'playing' : ''}`}>
-          {playing && <iframe key={`${question.youtubeId}-${playNonce}`} className="youtube-opening" src={`https://www.youtube-nocookie.com/embed/${question.youtubeId}?autoplay=1&start=${question.start}&end=${question.end}&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&playsinline=1`} title="Fragmento de opening oculto" allow="autoplay; encrypted-media" />}
-          <button className="play-opening" onClick={playClip} disabled={playing} aria-label={playing ? 'Reproduciendo fragmento' : 'Reproducir fragmento'}>{playing ? <Headphones size={29} /> : <Play size={29} fill="currentColor" />}</button>
-          <div className="waveform" aria-hidden="true">{[18, 34, 25, 48, 30, 55, 40, 22, 46, 31, 52, 27, 39, 19].map((height, i) => <i style={{ '--h': `${height}px`, '--delay': `${i * .05}s` }} key={i} />)}</div>
-          <div><strong>{playing ? 'Reproduciendo YouTube…' : 'Opening oculto'}</strong><small>Fragmento original #{index + 1}</small></div>
+        <div className="audio-console">
+          <div className="youtube-tap-target">
+            <iframe key={question.youtubeId} className="youtube-opening" src={`https://www.youtube-nocookie.com/embed/${question.youtubeId}?start=${question.start}&end=${question.end}&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&playsinline=1`} title={`Reproducir fragmento de opening ${index + 1}`} allow="encrypted-media; picture-in-picture" />
+            <span className="play-opening" aria-hidden="true"><Play size={29} fill="currentColor" /></span>
+          </div>
+          <div className="waveform" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <i key={i} />)}</div>
+          <div><strong>Toca para escuchar</strong><small>Fragmento original #{index + 1}</small></div>
         </div>
         <h3>¿A qué anime pertenece este opening?</h3>
         {selected && <div className="quiz-correct-banner" role="status"><Check size={19}/> ¡Opening reconocido! {selected}</div>}
         <div className="answers">
           {question.options.map((option) => <button className={`${wrong === option ? 'wrong' : ''} ${selected === option ? 'correct' : ''}`} onClick={() => choose(option)} key={option}><span>{option}</span>{selected === option ? <Check size={18} /> : <ChevronRight size={18} />}</button>)}
         </div>
-        <p className="audio-note">Puedes reproducir el fragmento tantas veces como quieras.</p>
+        <p className="audio-note">Toca el círculo de reproducción. En móvil, YouTube necesita recibir el toque directamente para activar el sonido.</p>
       </article>
     </GameLayout>
   )
