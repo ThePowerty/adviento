@@ -195,8 +195,8 @@ const instructionData = {
     narration: 'Yo me sé todos los openings. La letra no, pero hago muy bien los sonidos.',
   },
   opening: {
-    current: 3, number: '04', icon: '🎧', title: 'El opening misterioso', subtitle: 'Ocho fragmentos de YouTube',
-    objective: 'Escucha una fracción de cada opening original de YouTube y descubre a qué anime pertenece. Puedes reproducirla todas las veces que necesites.',
+    current: 3, number: '04', icon: '🎧', title: 'El opening misterioso', subtitle: 'Ocho fragmentos musicales',
+    objective: 'Escucha un fragmento de cada opening y descubre a qué anime pertenece. Puedes repetirlo todas las veces que necesites.',
     controls: ['Pulsa el botón de reproducción', 'Escucha hasta el final', 'Elige el anime correcto'],
     tip: 'Cada fragmento tiene un ritmo y un carácter inspirado en la energía de su serie.',
     narration: 'Yo canto los openings en japonés perfecto. Nadie puede demostrar lo contrario.',
@@ -401,6 +401,33 @@ function ChoiceGame({ type, current, title, kicker, questions, onComplete, sound
   )
 }
 
+const openingAudio = import.meta.glob('./openings/*.mp3', { eager: true, query: '?url', import: 'default' })
+
+function OpeningPlayer({ question, index }) {
+  const [failed, setFailed] = useState(false)
+  const [showVideo, setShowVideo] = useState(false)
+  const audioUrl = openingAudio[`./openings/${question.youtubeId}.mp3`]
+
+  return (
+    <div className="opening-player">
+      {audioUrl && !failed && (
+        <audio controls preload="metadata" src={audioUrl} onError={() => setFailed(true)} aria-label={`Fragmento de opening ${index + 1}`} />
+      )}
+      {failed && <p role="status">El audio no se ha podido cargar. Puedes escuchar el fragmento en YouTube.</p>}
+      <details onToggle={(event) => setShowVideo(event.currentTarget.open)}>
+        <summary>{audioUrl && !failed ? 'Alternativa en YouTube' : 'Escuchar en YouTube'}</summary>
+        <p>El vídeo puede revelar la respuesta.</p>
+        {showVideo && (
+          <>
+            <iframe src={`https://www.youtube-nocookie.com/embed/${question.youtubeId}?start=${question.start}&end=${question.end}&playsinline=1&rel=0`} title={`Vídeo del fragmento ${index + 1}`} allow="encrypted-media; picture-in-picture" />
+            <a href={`https://www.youtube.com/watch?v=${question.youtubeId}&t=${question.start}s`} target="_blank" rel="noopener noreferrer">Abrir en YouTube</a>
+          </>
+        )}
+      </details>
+    </div>
+  )
+}
+
 function OpeningGame({ onComplete, sound }) {
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState(null)
@@ -427,20 +454,12 @@ function OpeningGame({ onComplete, sound }) {
     <GameLayout current={3} kicker="Mundo 04 · Música" title="¿De qué anime es?" narrator={message} mood={wrong ? 'oops' : selected ? 'wow' : 'happy'}>
       <div className="round-meta"><span>Opening {index + 1} de {openingQuestions.length}</span><div><i style={{ width: `${((index + (selected ? 1 : 0)) / openingQuestions.length) * 100}%` }} /></div></div>
       <article className="question-card opening-card">
-        <div className="audio-console">
-          <div className="youtube-tap-target">
-            <iframe key={question.youtubeId} className="youtube-opening" src={`https://www.youtube-nocookie.com/embed/${question.youtubeId}?start=${question.start}&end=${question.end}&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&playsinline=1`} title={`Reproducir fragmento de opening ${index + 1}`} allow="encrypted-media; picture-in-picture" />
-            <span className="play-opening" aria-hidden="true"><Play size={29} fill="currentColor" /></span>
-          </div>
-          <div className="waveform" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <i key={i} />)}</div>
-          <div><strong>Toca para escuchar</strong><small>Fragmento original #{index + 1}</small></div>
-        </div>
+        {!selected && <OpeningPlayer key={question.youtubeId} question={question} index={index} />}
         <h3>¿A qué anime pertenece este opening?</h3>
         {selected && <div className="quiz-correct-banner" role="status"><Check size={19}/> ¡Opening reconocido! {selected}</div>}
         <div className="answers">
           {question.options.map((option) => <button className={`${wrong === option ? 'wrong' : ''} ${selected === option ? 'correct' : ''}`} onClick={() => choose(option)} key={option}><span>{option}</span>{selected === option ? <Check size={18} /> : <ChevronRight size={18} />}</button>)}
         </div>
-        <p className="audio-note">Toca el círculo de reproducción. En móvil, YouTube necesita recibir el toque directamente para activar el sonido.</p>
       </article>
     </GameLayout>
   )
